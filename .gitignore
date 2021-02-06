@@ -1,0 +1,14 @@
+# Binaries
+DiscordMotusBot/bin/*
+DiscordMotusBot/obj/*
+*.dll
+*.o
+*.os
+*.so
+*.obj
+*.pyc
+*.dblite
+*.pdb
+*.lib
+bin
+.vs
