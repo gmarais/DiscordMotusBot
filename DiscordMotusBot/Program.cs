@@ -1,26 +1,26 @@
-﻿using System;
+using System;
 using Discord;
 using Discord.WebSocket;
 using System.Threading.Tasks;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Security.Cryptography;
 
 namespace DiscordMotusBot
 {
-    class BotConfig
-    {
-        public string key = null;
-        public Dictionary<ulong, GameConfig> games_configs = null;
-    }
-
     internal class Program
     {
-        private BotConfig _botConfig;
+        private Dictionary<ulong, GameConfig> _gamesConfigs = null;
         private Dictionary<ulong, MotusGame> _motusGames = new Dictionary<ulong, MotusGame>();
         private MotusMessagesFormulator _motusMessagesFormulator = new MotusMessagesFormulator();
         private DiscordSocketClient _client;
 
+        public Program()
+        {
+            WebServer.Start();
+        }
+      
         public static void Main(string[] args)
             => new Program().MainAsync().GetAwaiter().GetResult();
 
@@ -30,15 +30,18 @@ namespace DiscordMotusBot
             _client.Log += Log;
             _client.MessageReceived += MotusGame;
 
-            _botConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<BotConfig>(File.ReadAllText("BotConfig.json"));
-            await _client.LoginAsync(TokenType.Bot, _botConfig.key);
+            if (EncryptedSaves.SaveExists("GAMES_CONFIGS"))
+                _gamesConfigs = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<ulong, GameConfig>>(EncryptedSaves.Load("GAMES_CONFIGS"));
+            else
+                _gamesConfigs = new Dictionary<ulong, GameConfig>();
+            await _client.LoginAsync(TokenType.Bot, System.Environment.GetEnvironmentVariable("DKEY"));
             await _client.StartAsync();
             await Task.Delay(-1);
         }
 
         private void SaveConfig()
         {
-            File.WriteAllText("BotConfig.json", Newtonsoft.Json.JsonConvert.SerializeObject(_botConfig));
+            EncryptedSaves.Save("GAMES_CONFIGS", Newtonsoft.Json.JsonConvert.SerializeObject(_gamesConfigs));
         }
 
         private Task Log(LogMessage msg)
@@ -54,8 +57,8 @@ namespace DiscordMotusBot
             ulong channel_id = message.Channel.Id;
             if (_motusGames.ContainsKey(channel_id) == false)
             {
-                if (_botConfig.games_configs.ContainsKey(channel_id))
-                    _motusGames[channel_id] = new MotusGame(_botConfig.games_configs[channel_id].Copy(), channel_id);
+                if (_gamesConfigs.ContainsKey(channel_id))
+                    _motusGames[channel_id] = new MotusGame(_gamesConfigs[channel_id].Copy(), channel_id);
                 else
                     _motusGames[channel_id] = new MotusGame(new GameConfig(), channel_id);
             }
@@ -103,9 +106,9 @@ namespace DiscordMotusBot
                 if (_motusMessagesFormulator._language_folders.Contains(lang) && lang != _motusGames[channel_id].GetLanguage())
                     await message.Channel.SendMessageAsync(_motusMessagesFormulator.MessageSetLanguage(_motusGames[channel_id].CommandSetLanguage(lang), lang));
             }
-            if (_botConfig.games_configs.ContainsKey(channel_id) == false || _motusGames[channel_id].GetConfig().Equals(_botConfig.games_configs[channel_id]) == false)
+            if (_gamesConfigs.ContainsKey(channel_id) == false || _motusGames[channel_id].GetConfig().Equals(_gamesConfigs[channel_id]) == false)
             {
-                _botConfig.games_configs[channel_id] = _motusGames[channel_id].GetConfig().Copy();
+                _gamesConfigs[channel_id] = _motusGames[channel_id].GetConfig().Copy();
                 SaveConfig();
             }
         }

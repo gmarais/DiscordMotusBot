@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -144,9 +144,9 @@ namespace DiscordMotusBot
             _channel_id = channel_id;
             LoadDictionary(_config.lang, _config.size);
             LoadMultipliers(_config.lang);
-            if (File.Exists("Scores/" + _channel_id + ".txt"))
+            if (EncryptedSaves.SaveExists(channel_id.ToString()))
             {
-                var playerScoresContent = File.ReadAllText("Scores/" + _channel_id + ".txt");
+                var playerScoresContent = EncryptedSaves.Load(_channel_id.ToString());
                 var playerScoresArray = playerScoresContent.Split('\n');
                 for (var p = 0; p < playerScoresArray.Length; p++)
                 {
@@ -158,8 +158,6 @@ namespace DiscordMotusBot
 
         public void SaveScores()
         {
-            if (File.Exists("Scores/" + _channel_id + ".txt"))
-                File.Delete("Scores/" + _channel_id + ".txt");
             var item = _playerScores.ElementAt(0);
             string scoresText = item.Key + "|" + item.Value;
             for (var i = 1; i < _playerScores.Count; i++)
@@ -167,7 +165,7 @@ namespace DiscordMotusBot
                 item = _playerScores.ElementAt(i);
                 scoresText += "\n" + item.Key + "|" + item.Value;
             }
-            File.WriteAllText("Scores/" + _channel_id + ".txt", scoresText);
+            EncryptedSaves.Save(_channel_id.ToString(), scoresText);
         }
 
         public void UpdateGameTime()
